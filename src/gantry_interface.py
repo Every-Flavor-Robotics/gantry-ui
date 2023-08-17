@@ -3,6 +3,7 @@ from threading import Thread, Event
 import uuid
 import time
 
+
 class GantryInterface:
     def __init__(self):
         self.server_url = None
@@ -13,76 +14,128 @@ class GantryInterface:
         self.heartbeat_failure_count = 0
         self.MAX_HEARTBEAT_FAILURES = 5
 
-    def connect(self, ip: str, port: int = 80) -> bool:
+    def _send_request(self, method, endpoint, data=None):
+        headers = {"session_id": self.session_id}
+
+        # Strip leading slash from endpoint
+        if endpoint.startswith("/"):
+            endpoint = endpoint[1:]
+
+        print(f"Sending {method} request to {endpoint} with data: {data}")
+
+        url = f"{self.server_url}/{endpoint}"
+        try:
+            if method == "GET":
+                response = requests.get(url, headers=headers)
+            elif method == "POST":
+                response = requests.post(url, json=data, headers=headers)
+
+            if response.status_code != 200:
+                print(
+                    f"Request to {endpoint} failed with status {response.status_code}: {response.text}"
+                )
+                return None
+
+            # Check if JSON response
+            if response.headers.get("content-type") == "application/json":
+                return response.json()
+            else:
+                return response.text
+
+        except requests.RequestException as e:
+            print(f"Failed to send {method} request to {endpoint}. Error: {e}")
+            return None
+
+    def connect(self, ip: str, port: int = 8080) -> bool:
         """Connect to the ESP32 web server."""
         self.server_url = f"http://{ip}:{port}"
-
-        # Generate a short session ID
         self.session_id = str(uuid.uuid4())[:8]
         print(f"Session ID: {self.session_id}")
 
-        # Send the session ID to the ESP32
-        try:
-            response = requests.post(f"{self.server_url}/", json={"session_id": self.session_id}, )
-            if response.status_code == 200:
-                # Start the heartbeat listener thread
-                self._listener_thread = Thread(target=self._heartbeat)
-                self._listener_thread.start()
-                self.connected = True
-                return True
-            else:
-                print("Failed to connect to the server.")
-                print(f"Server responded with status code: {response.status_code}")
-        except requests.RequestException:
-            print("Failed to connect to the server.")
+        response = self._send_request("POST", "/session", {"session_id": self.session_id})
 
-        return False
+
+        # Check for 200 response
+        if response:
+            self._listener_thread = Thread(target=self._heartbeat)
+            self._listener_thread.start()
+            self.connected = True
+
+            return True
+        else:
+            print("Failed to connect to the server.")
+            return False
 
     def disconnect(self) -> None:
         """Disconnect from the server and stop the listener thread."""
-        # Log that the gantry is disconnected
-
         self._stop_event.set()
         if self._listener_thread:
             self._listener_thread.join()
-
         self.connected = False
         print("Disconnected from gantry.")
 
-    def send_data(self, endpoint: str, data: dict) -> None:
-        """Send data to the ESP32 web server."""
-        try:
-            response = requests.post(f"{self.server_url}/{endpoint}", json=data)
-            # Handle response if necessary
-        except requests.RequestException as e:
-            print(f"Failed to send data. Error: {e}")
-
     def _heartbeat(self) -> None:
         """Private method to continuously poll the server for heartbeats."""
-
         self._stop_event.clear()
-        headers = {"session_id": self.session_id}
+
         while not self._stop_event.is_set():
-            try:
-                # Reset heartbeat counter
+            response = self._send_request("GET", "/session")
+
+            if not response or response.get("status") != "success":
+                print("Heartbeat check failed.")
+                self.heartbeat_failure_count += 1
+            else:
                 self.heartbeat_failure_count = 0
 
-                response = requests.get(f"{self.server_url}/", headers=headers)
-                if response.status_code != 200:
-                    print("Heartbeat check failed. Disconnected from gantry.")
-                    self.connected = False
-                    # Stop thread
-                    self._stop_event.set()
-
-            except requests.RequestException:
-                print("Failed to poll heartbeat.")
-
-                #  Increase the failure count
-                self.heartbeat_failure_count += 1
-
-            if(self.heartbeat_failure_count >= self.MAX_HEARTBEAT_FAILURES):
-                print("Heartbeat check failed. Disconnected from gantry.")
+            if self.heartbeat_failure_count >= self.MAX_HEARTBEAT_FAILURES:
+                print("Disconnected from gantry due to too many heartbeat failures.")
                 self.connected = False
+                self._stop_event.set()
 
             # Wait for a few seconds before polling again
             self._stop_event.wait(2)
+
+
+    def set_pid_position_p_channel_0(self, value: float) -> None:
+        """Set the position/p PID value on the ESP32 web server for channel 0."""
+        self._send_request("POST", "/pid/ch0/position/p", {"value": value})
+
+    def set_pid_position_p_channel_1(self, value: float) -> None:
+        """Set the position/p PID value on the ESP32 web server for channel 1."""
+        self._send_request("POST", "/pid/ch1/position/p", {"value": value})
+
+    # Adding methods for all other endpoints
+    # ... for channel 0
+    def set_pid_position_i_channel_0(self, value: float) -> None:
+        self._send_request("POST", "/pid/ch0/position/i", {"value": value})
+
+    def set_pid_position_d_channel_0(self, value: float) -> None:
+        self._send_request("POST", "/pid/ch0/position/d", {"value": value})
+
+    def set_pid_velocity_p_channel_0(self, value: float) -> None:
+        self._send_request("POST", "/pid/ch0/velocity/p", {"value": value})
+
+    def set_pid_velocity_i_channel_0(self, value: float) -> None:
+        self._send_request("POST", "/pid/ch0/velocity/i", {"value": value})
+
+    def set_pid_velocity_d_channel_0(self, value: float) -> None:
+        self._send_request("POST", "/pid/ch0/velocity/d", {"value": value})
+
+    # ... for channel 1
+    def set_pid_position_i_channel_1(self, value: float) -> None:
+        self._send_request("POST", "/pid/ch1/position/i", {"value": value})
+
+    def set_pid_position_d_channel_1(self, value: float) -> None:
+        self._send_request("POST", "/pid/ch1/position/d", {"value": value})
+
+    def set_pid_velocity_p_channel_1(self, value: float) -> None:
+        self._send_request("POST", "/pid/ch1/velocity/p", {"value": value})
+
+    def set_pid_velocity_i_channel_1(self, value: float) -> None:
+        self._send_request("POST", "/pid/ch1/velocity/i", {"value": value})
+
+    def set_pid_velocity_d_channel_1(self, value: float) -> None:
+        self._send_request("POST", "/pid/ch1/velocity/d", {"value": value})
+
+    def set_target_waypoint(self, value: int) -> None:
+        self._send_request("POST", "/target_waypoint", {"value": value})
