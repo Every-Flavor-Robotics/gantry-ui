@@ -21,7 +21,7 @@ class GantryInterface:
         if endpoint.startswith("/"):
             endpoint = endpoint[1:]
 
-        print(f"Sending {method} request to {endpoint} with data: {data}")
+        # print(f"Sending {method} request to {endpoint} with data: {data}")
 
         url = f"{self.server_url}/{endpoint}"
         try:
@@ -52,8 +52,9 @@ class GantryInterface:
         self.session_id = str(uuid.uuid4())[:8]
         print(f"Session ID: {self.session_id}")
 
-        response = self._send_request("POST", "/session", {"session_id": self.session_id})
-
+        response = self._send_request(
+            "POST", "/session", {"session_id": self.session_id}
+        )
 
         # Check for 200 response
         if response:
@@ -94,7 +95,6 @@ class GantryInterface:
 
             # Wait for a few seconds before polling again
             self._stop_event.wait(2)
-
 
     def set_pid_position_p_channel_0(self, value: float) -> None:
         """Set the position/p PID value on the ESP32 web server for channel 0."""
@@ -139,3 +139,46 @@ class GantryInterface:
 
     def set_target_waypoint(self, value: int) -> None:
         self._send_request("POST", "/target_waypoint", {"value": value})
+
+    def set_mode(self, value: int) -> None:
+        self._send_request("POST", "/mode", {"value": value})
+
+    def get_position(
+        self,
+    ) -> tuple[float, float]:
+        position_0 = self._send_request("GET", "/position/q0")
+        position_1 = self._send_request("GET", "/position/q1")
+
+        return float(position_0), float(position_1)
+
+    def add_waypoint(self) -> bool:
+        response = self._send_request("GET", "/add_waypoint")
+
+        return bool(response)
+
+    def save_trajectory(self) -> bool:
+        response = self._send_request("GET", "/save_trajectory")
+
+        return bool(response)
+
+    def set_target_speed(self, value: float) -> None:
+        self._send_request("POST", "/target_speed", {"value": value})
+
+    def set_speed_multipler(self, q0: float, q1: float) -> None:
+        self._send_request("POST", "/speed_multiplier/q0", {"value": q0})
+        self._send_request("POST", "/speed_multiplier/q1", {"value": q1})
+
+    def get_next_waypoint(self) -> tuple[float, float]:
+        waypoint_0 = self._send_request("GET", "/next_waypoint/q0")
+        waypoint_1 = self._send_request("GET", "/next_waypoint/q1")
+
+        return float(waypoint_0), float(waypoint_1)
+
+    def get_previous_waypoint(self) -> tuple[float, float]:
+        waypoint_0 = self._send_request("GET", "/previous_waypoint/q0")
+        waypoint_1 = self._send_request("GET", "/previous_waypoint/q1")
+
+        return float(waypoint_0), float(waypoint_1)
+
+    def get_trajectory_length(self) -> int:
+        return int(self._send_request("GET", "/trajectory_length"))
