@@ -92,11 +92,6 @@ def go_to_next(gantry_data: dict):
         # Get next waypoint
         q0_wp, q1_wp = gantry["interface"].get_next_waypoint()
 
-        print("q0_pos: ", q0_pos)
-        print("q1_pos: ", q1_pos)
-        print("q0_wp: ", q0_wp)
-        print("q1_wp: ", q1_wp)
-
         # Calculate the distance between the current position and the next waypoint
         q0_dist = q0_wp - q0_pos
         q1_dist = q1_wp - q1_pos
@@ -110,20 +105,21 @@ def go_to_next(gantry_data: dict):
         q1_multiplier = abs(q1_dist) / max(abs(q0_dist), abs(q1_dist))
 
         # Print multipliers, waypoints, distances
-        # print(f"q0_multiplier: {q0_multiplier}")
-        # print(f"q1_multiplier: {q1_multiplier}")
-        # print(f"q0_wp: {q0_wp}")
-        # print(f"q1_wp: {q1_wp}")
-        # print(f"q0_dist: {q0_dist}")
-        # print(f"q1_dist: {q1_dist}")
+        print(f"q0_multiplier: {q0_multiplier}")
+        print(f"q1_multiplier: {q1_multiplier}")
+        print(f"q0_wp: {q0_wp}")
+        print(f"q1_wp: {q1_wp}")
+        print(f"q0_dist: {q0_dist}")
+        print(f"q1_dist: {q1_dist}")
 
         # Set the target speed
         gantry["interface"].set_speed_multipler(q0_multiplier, q1_multiplier)
+
+    cur_waypoint += 1
     # Set waypoint for all gantries
     for _, gantry in gantry_data.items():
-        gantry["interface"].set_target_waypoint(cur_waypoint)
-    cur_waypoint += 1
 
+        gantry["interface"].set_target_waypoint(cur_waypoint)
 
 def go_to_previous(gantry_data: dict, waypoint_index: int):
     global cur_waypoint
@@ -162,17 +158,16 @@ def go_to_previous(gantry_data: dict, waypoint_index: int):
 
         # Set the target speed
         gantry["interface"].set_speed_multipler(q0_multiplier, q1_multiplier)
+    cur_waypoint -= 1
 
     # Set waypoint for all gantries
     for _, gantry_data in gantry_data.items():
         gantry["interface"].set_target_waypoint(cur_waypoint)
 
-    cur_waypoint -= 1
-
-
 
 def trajectory_playback(gantry_data: dict):
     global cur_waypoint
+
     # Print in green, entering playback mode
     print("\033[92mEntering playback mode\033[0m")
     print("Press d to move to next waypoint")
@@ -180,24 +175,13 @@ def trajectory_playback(gantry_data: dict):
     print("Press q to exit")
 
 
+    cur_waypoint = 0
+
     # Set mode for all gantries to 2
     for _, gantry in gantry_data.items():
         gantry["interface"].set_mode(2)
-
-    # cur_waypoint = 0
-    print("Setting target waypoint to 0")
-    for _, gantry in gantry_data.items():
-        # Set the target speed
-        q0_pos, q1_pos = gantry["interface"].get_position()
-        q0_wp, q1_wp = gantry["interface"].get_next_waypoint()
-
-        print("q0_pos: ", q0_pos)
-        print("q1_pos: ", q1_pos)
-        print("q0_wp: ", q0_wp)
-        print("q1_wp: ", q1_wp)
-
-        gantry["interface"].set_speed_multipler(1.0, 1.0)
         gantry["interface"].set_target_waypoint(0)
+
 
     # Get trajectory length for all gantries, confirm they are the same and save
     # trajectory length
@@ -212,6 +196,8 @@ def trajectory_playback(gantry_data: dict):
 
     print("Found trajectory of length ", trajectory_length)
     while True:
+        print("cur_waypoint: ", cur_waypoint)
+        print("trajectory_length: ", trajectory_length)
         button = getch()
 
         # Check if user pressed q
@@ -221,6 +207,7 @@ def trajectory_playback(gantry_data: dict):
             for _, gantry in gantry_data.items():
                 gantry["interface"].set_mode(0)
             return
+
         # Check if user pressed d
         if button == "d":
             if cur_waypoint == trajectory_length - 1:
@@ -228,167 +215,12 @@ def trajectory_playback(gantry_data: dict):
                 continue
             # If user pressed d, move to next waypoint
             go_to_next(gantry_data)
-            return
         elif button == "a":
             if cur_waypoint == 0:
                 print("Reached beginning of trajectory")
                 continue
             # If user pressed a, move to previous waypoint
             go_to_previous(gantry_data, cur_waypoint)
-
-            return
-
-
-def set_ch0_pid_params():
-    """Allow user to update PID parameters"""
-
-    # Print in green update pid params
-    print("\033[92mUpdate Position PID parameters\033[0m")
-
-    # Get P, I, D from user
-    print("Enter P value")
-    p = input()
-    # If empty, set to None
-    if p == "":
-        p = None
-    print("Enter I value")
-    i = input()
-    # If empty, set to None
-    if i == "":
-        i = None
-    print("Enter D value")
-    d = input()
-    # If empty, set to None
-    if d == "":
-        d = None
-    print("Enter lpf")
-    lpf = input()
-    # If empty, set to None
-    if lpf == "":
-        lpf = None
-
-    # Set PID position parameters for all gantries
-    for _, gantry in gantry_data.items():
-        if p is not None:
-            gantry["interface"].set_pid_position_p_channel_0(p)
-        if i is not None:
-            gantry["interface"].set_pid_position_i_channel_0(i)
-        if d is not None:
-            gantry["interface"].set_pid_position_d_channel_0(d)
-        if lpf is not None:
-            gantry["interface"].set_pid_position_lpf_channel_0(lpf)
-
-    # Repeat for velocity
-    print("\033[92mUpdate Velocity PID parameters\033[0m")
-    print("Enter P value")
-    p = input()
-    # If empty, set to None
-    if p == "":
-        p = None
-    print("Enter I value")
-    i = input()
-    # If empty, set to None
-    if i == "":
-        i = None
-    print("Enter D value")
-    d = input()
-    # If empty, set to None
-    if d == "":
-        d = None
-    print("Enter lpf")
-    lpf = input()
-    # If empty, set to None
-    if lpf == "":
-        lpf = None
-
-    # Set PID position parameters for all gantries
-    for _, gantry in gantry_data.items():
-        if p is not None:
-            gantry["interface"].set_pid_velocity_p_channel_0(p)
-        if i is not None:
-            gantry["interface"].set_pid_velocity_i_channel_0(i)
-        if d is not None:
-            gantry["interface"].set_pid_velocity_d_channel_0(d)
-        if lpf is not None:
-            gantry["interface"].set_pid_velocity_lpf_channel_0(lpf)
-
-def set_ch1_pid_params(gantry_data: dict):
-    """Allow user to update PID parameters"""
-
-    # Print in green update pid params
-    print("\033[92mUpdate Position PID parameters\033[0m")
-
-    # Get P, I, D from user
-    print("Enter P value")
-    p = input()
-    # If empty, set to None
-    if p == "":
-        p = None
-    print("Enter I value")
-    i = input()
-    # If empty, set to None
-    if i == "":
-        i = None
-    print("Enter D value")
-    d = input()
-    # If empty, set to None
-    if d == "":
-        d = None
-    print("Enter lpf")
-    lpf = input()
-    # If empty, set to None
-    if lpf == "":
-        lpf = None
-
-    # Set PID position parameters for all gantries
-    for _, gantry in gantry_data.items():
-        if p is not None:
-            gantry["interface"].set_pid_position_p_channel_1(p)
-        if i is not None:
-            gantry["interface"].set_pid_position_i_channel_1(i)
-        if d is not None:
-            gantry["interface"].set_pid_position_d_channel_1(d)
-        if lpf is not None:
-            gantry["interface"].set_pid_position_lpf_channel_1(lpf)
-
-    # Repeat for velocity
-    print("\033[92mUpdate Velocity PID parameters\033[0m")
-    print("Enter P value")
-    p = input()
-    # If empty, set to None
-    if p == "":
-        p = None
-    print("Enter I value")
-    i = input()
-    # If empty, set to None
-    if i == "":
-        i = None
-    print("Enter D value")
-    d = input()
-    # If empty, set to None
-    if d == "":
-        d = None
-    print("Enter lpf")
-    lpf = input()
-    # If empty, set to None
-    if lpf == "":
-        lpf = None
-
-    # Set PID position parameters for all gantries
-    for _, gantry in gantry_data.items():
-        if p is not None:
-            gantry["interface"].set_pid_velocity_p_channel_1(p)
-        if i is not None:
-            gantry["interface"].set_pid_velocity_i_channel_1(i)
-        if d is not None:
-            gantry["interface"].set_pid_velocity_d_channel_1(d)
-        if lpf is not None:
-            gantry["interface"].set_pid_velocity_lpf_channel_1(lpf)
-
-
-
-
-
 
 
 def main():
@@ -421,19 +253,26 @@ def main():
         gantry_data["interface"].set_mode(0)
 
     # Enter trajectory recording mode
-    # record_trajectory(gantries)
-
-    # Enter target speed mode
-    set_speed(gantries)
-
+    record_trajectory(gantries)
 
     while True:
+
+
+
+        # Enter target speed mode
+        set_speed(gantries)
+
         # Enter trajectory playback mode
         trajectory_playback(gantries)
 
-        # set_ch1d_pid_params(gantries)
 
-        # time.sleep(5)
+        for gantry_name, gantry_data in gantries.items():
+            gantry_data["interface"].set_mode(0)
+
+
+        print("Idle mode")
+        print("Press enter to resume")
+        input()
 
     # # gantry = GantryInterface()
 

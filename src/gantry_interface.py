@@ -79,66 +79,82 @@ class GantryInterface:
         """Private method to continuously poll the server for heartbeats."""
         self._stop_event.clear()
 
-        while not self._stop_event.is_set():
-            response = self._send_request("GET", "/session")
+        # while not self._stop_event.is_set():
+        #     response = self._send_request("GET", "/session")
 
-            if not response or response.get("status") != "success":
-                print("Heartbeat check failed.")
-                self.heartbeat_failure_count += 1
-            else:
-                self.heartbeat_failure_count = 0
+        #     if not response or response.get("status") != "success":
+        #         print("Heartbeat check failed.")
+        #         self.heartbeat_failure_count += 1
+        #     else:
+        #         self.heartbeat_failure_count = 0
 
-            if self.heartbeat_failure_count >= self.MAX_HEARTBEAT_FAILURES:
-                print("Disconnected from gantry due to too many heartbeat failures.")
-                self.connected = False
-                self._stop_event.set()
+        #     if self.heartbeat_failure_count >= self.MAX_HEARTBEAT_FAILURES:
+        #         print("Disconnected from gantry due to too many heartbeat failures.")
+        #         self.connected = False
+        #         self._stop_event.set()
 
-            # Wait for a few seconds before polling again
-            self._stop_event.wait(2)
+        #     # Wait for a few seconds before polling again
+        #     self._stop_event.wait(2)
 
     def set_pid_position_p_channel_0(self, value: float) -> None:
         """Set the position/p PID value on the ESP32 web server for channel 0."""
-        self._send_request("POST", "/pid/ch0/position/p", {"value": value})
+        self._send_request("POST", "/ch0/position/p", {"value": value})
 
     def set_pid_position_p_channel_1(self, value: float) -> None:
         """Set the position/p PID value on the ESP32 web server for channel 1."""
-        self._send_request("POST", "/pid/ch1/position/p", {"value": value})
+        self._send_request("POST", "/ch1/position/p", {"value": value})
 
     # Adding methods for all other endpoints
     # ... for channel 0
     def set_pid_position_i_channel_0(self, value: float) -> None:
-        self._send_request("POST", "/pid/ch0/position/i", {"value": value})
+        self._send_request("POST", "/ch0/position/i", {"value": value})
 
     def set_pid_position_d_channel_0(self, value: float) -> None:
-        self._send_request("POST", "/pid/ch0/position/d", {"value": value})
+        self._send_request("POST", "/ch0/position/d", {"value": value})
+
+    def set_pid_position_lpf_channel_0(self, value: float) -> None:
+        self._send_request("POST", "/ch0/position/lpf", {"value": value})
 
     def set_pid_velocity_p_channel_0(self, value: float) -> None:
-        self._send_request("POST", "/pid/ch0/velocity/p", {"value": value})
+        self._send_request("POST", "/ch0/velocity/p", {"value": value})
 
     def set_pid_velocity_i_channel_0(self, value: float) -> None:
-        self._send_request("POST", "/pid/ch0/velocity/i", {"value": value})
+        self._send_request("POST", "/ch0/velocity/i", {"value": value})
 
     def set_pid_velocity_d_channel_0(self, value: float) -> None:
-        self._send_request("POST", "/pid/ch0/velocity/d", {"value": value})
+        self._send_request("POST", "/ch0/velocity/d", {"value": value})
+
+    def set_pid_velocity_lpf_channel_0(self, value: float) -> None:
+        self._send_request("POST", "/ch0/velocity/lpf", {"value": value})
 
     # ... for channel 1
     def set_pid_position_i_channel_1(self, value: float) -> None:
-        self._send_request("POST", "/pid/ch1/position/i", {"value": value})
+        self._send_request("POST", "/ch1/position/i", {"value": value})
 
     def set_pid_position_d_channel_1(self, value: float) -> None:
-        self._send_request("POST", "/pid/ch1/position/d", {"value": value})
+        self._send_request("POST", "/ch1/position/d", {"value": value})
+
+    def set_pid_position_lpf_channel_1(self, value: float) -> None:
+        self._send_request("POST", "/ch1/position/lpf", {"value": value})
 
     def set_pid_velocity_p_channel_1(self, value: float) -> None:
-        self._send_request("POST", "/pid/ch1/velocity/p", {"value": value})
+        self._send_request("POST", "/ch1/velocity/p", {"value": value})
 
     def set_pid_velocity_i_channel_1(self, value: float) -> None:
-        self._send_request("POST", "/pid/ch1/velocity/i", {"value": value})
+        self._send_request("POST", "/ch1/velocity/i", {"value": value})
 
     def set_pid_velocity_d_channel_1(self, value: float) -> None:
-        self._send_request("POST", "/pid/ch1/velocity/d", {"value": value})
+        self._send_request("POST", "/ch1/velocity/d", {"value": value})
+
+    def set_pid_velocity_lpf_channel_1(self, value: float) -> None:
+        self._send_request("POST", "/ch1/velocity/lpf", {"value": value})
 
     def set_target_waypoint(self, value: int) -> None:
         self._send_request("POST", "/target_waypoint", {"value": value})
+
+    def get_target_waypoint(self) -> int:
+        cur_waypoint = self._send_request("GET", "/target_waypoint")
+        return int(cur_waypoint)
 
     def set_mode(self, value: int) -> None:
         self._send_request("POST", "/mode", {"value": value})
